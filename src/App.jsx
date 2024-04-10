@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import './App.css';
 
-const accessKey = "5BvZ6IsmQvXod2e1aX094xdpu5KTCuE4nVKOQ_bGwzA";
+const accessKey = process.env.UNSPLASH_API;
 
 const ImageSearchApp = () => {
   const [keyword, setKeyword] = useState("");
