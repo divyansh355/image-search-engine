@@ -1,70 +1,106 @@
-import React, { useState, useEffect } from "react";
-import './App.css';
+import axios from 'axios';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Button, Form } from 'react-bootstrap';
 
-const accessKey = process.env.UNSPLASH_API;
+const API_URL = 'https://api.unsplash.com/search/photos';
+const IMAGES_PER_PAGE = 20;
 
-const ImageSearchApp = () => {
-  const [keyword, setKeyword] = useState("");
+function App() {
+  const searchInput = useRef(null);
+  const [images, setImages] = useState([]);
   const [page, setPage] = useState(1);
-  const [results, setResults] = useState([]);
-  const [showMoreBtnDisplay, setShowMoreBtnDisplay] = useState("none");
+  const [totalPages, setTotalPages] = useState(0);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const searchImage = async () => {
-    const url = `https://api.unsplash.com/search/photos?page=${page}&query=${keyword}&client_id=${accessKey}&per_page=12`;
-    const response = await fetch(url);
-    const data = await response.json();
-    if (page === 1) {
-      setResults(data.results);
-    } else {
-      setResults((prevResults) => [...prevResults, ...data.results]);
+  const fetchImages = useCallback(async () => {
+    try {
+      if (searchInput.current.value) {
+        setErrorMsg('');
+        setLoading(true);
+        const { data } = await axios.get(
+          `${API_URL}?query=${
+            searchInput.current.value
+          }&page=${page}&per_page=${IMAGES_PER_PAGE}&client_id=${
+            import.meta.env.VITE_API_KEY
+          }`
+        );
+        setImages(data.results);
+        setTotalPages(data.total_pages);
+        setLoading(false);
+      }
+    } catch (error) {
+      setErrorMsg('Error fetching images. Try again later.');
+      console.log(error);
+      setLoading(false);
     }
-    setShowMoreBtnDisplay("block");
-  };
+  }, [page]);
 
   useEffect(() => {
-    searchImage();
-  }, [page, keyword]);  
+    fetchImages();
+  }, [fetchImages]);
 
-  const handleSearch = (e) => {
-    e.preventDefault();
+  const resetSearch = () => {
     setPage(1);
-    searchImage();
+    fetchImages();
   };
 
-  const handleShowMore = () => {
-    setPage((prevPage) => prevPage + 1);
+  const handleSearch = (event) => {
+    event.preventDefault();
+    resetSearch();
+  };
+
+  const handleSelection = (selection) => {
+    searchInput.current.value = selection;
+    resetSearch();
   };
 
   return (
-    <div>
-      <h1>image search engine</h1>
-      <form onSubmit={handleSearch}>
-        <input
-          type="text"
-          value={keyword}
-          placeholder="Search something...."
-          onChange={(e) => setKeyword(e.target.value)}
-        />
-        <button type="submit">Search</button>
-      </form>
-      <div id="search-result">
-        {results.map((result, index) => (
-          <img
-            key={index}
-            src={result.urls.small}
-            alt={result.alt_description}
+    <div className='container'>
+      <h1 className='title'>Image Search Engine</h1>
+      {errorMsg && <p className='error-msg'>{errorMsg}</p>}
+      <div className='search-section'>
+        <Form onSubmit={handleSearch}>
+          <Form.Control
+            type='search'
+            placeholder='Type something to search...'
+            className='search-input'
+            ref={searchInput}
           />
-        ))}
+        </Form>
       </div>
-      <button
-        id="show-more-btn"
-        style={{ display: showMoreBtnDisplay }}
-        onClick={handleShowMore}
-      >
-        Show More
-      </button>
+      <div className='filters'>
+        <div onClick={() => handleSelection('nature')}>Nature</div>
+        <div onClick={() => handleSelection('birds')}>Birds</div>
+        <div onClick={() => handleSelection('cats')}>Cats</div>
+        <div onClick={() => handleSelection('shoes')}>Shoes</div>
+      </div>
+      {loading ? (
+        <p className='loading'>Loading...</p>
+      ) : (
+        <>
+          <div className='images'>
+            {images.map((image) => (
+              <img
+                key={image.id}
+                src={image.urls.small}
+                alt={image.alt_description}
+                className='image'
+              />
+            ))}
+          </div>
+          <div className='buttons'>
+            {page > 1 && (
+              <Button onClick={() => setPage(page - 1)}>Previous</Button>
+            )}
+            {page < totalPages && (
+              <Button onClick={() => setPage(page + 1)}>Next</Button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
-};
+}
 
-export default ImageSearchApp;
+export default App;
